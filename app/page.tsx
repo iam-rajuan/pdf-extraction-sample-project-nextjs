@@ -109,11 +109,11 @@ export default function HomePage() {
           </span>
           <div className="grid gap-4 lg:max-w-3xl">
             <h1 className="text-4xl font-semibold tracking-tight text-slate-950">
-              Backend-first PDF extraction with dynamic structured review
+              Upload PDFs, extract data, and review clean structured output
             </h1>
             <p className="text-base leading-8 text-slate-600">
-              Upload a PDF, extract content through a real backend pipeline, inspect normalized
-              fields and sections, and evaluate extraction quality with OCR-ready fallbacks.
+              The workflow is intentionally simple: upload a PDF, run backend extraction, and
+              inspect the normalized structured result in one consistent review interface.
             </p>
           </div>
         </section>
@@ -133,13 +133,25 @@ export default function HomePage() {
 
           <div className="glass-panel rounded-3xl border border-white/70 p-6 shadow-soft">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-              What this MVP does
+              Product priorities
             </p>
             <div className="mt-4 space-y-4 text-sm leading-7 text-slate-600">
-              <p>Processes uploads through an App Router API route using a Node runtime.</p>
-              <p>Extracts text with `pdf-parse`, normalizes the response, and detects document type heuristically.</p>
-              <p>Flags OCR-required scenarios without coupling the UI to parser-specific output.</p>
-              <p>Renders variable structured data, sections, tables, raw text, JSON, warnings, and missing fields.</p>
+              <p>
+                <span className="font-semibold text-slate-900">1. PDF upload</span>
+                {" "}
+                with validation and clean reset behavior.
+              </p>
+              <p>
+                <span className="font-semibold text-slate-900">2. Data extraction</span>
+                {" "}
+                through a backend Node.js pipeline using `pdf-parse` and document-type heuristics.
+              </p>
+              <p>
+                <span className="font-semibold text-slate-900">3. Structured output</span>
+                {" "}
+                returned in one normalized schema for overview, fields, sections, entities, tables,
+                raw text, and JSON review.
+              </p>
             </div>
           </div>
         </section>

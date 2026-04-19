@@ -6,7 +6,6 @@ import {
   summarizeSectionTopics
 } from "@/lib/pdf/extraction-helpers";
 import type { ExtractionContext, ExtractorResult } from "@/lib/pdf/extraction-helpers";
-import type { DocumentType } from "@/types/extraction";
 
 export function extractStrategyData(
   context: ExtractionContext,
@@ -36,6 +35,8 @@ export function extractStrategyData(
   addField(fields, "Milestones Or Timeline", milestones);
   addField(fields, "Recommendations", recommendations);
   addField(fields, "Section Topics", summarizeSectionTopics(context.sections));
+  addField(fields, "Detected Sections", context.sections.length);
+  addField(fields, "Detected Tables", context.tables.length);
 
   const summaryParts = [
     context.title

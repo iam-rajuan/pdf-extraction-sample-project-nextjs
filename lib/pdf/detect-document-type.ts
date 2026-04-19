@@ -65,6 +65,21 @@ const rules: Record<DocumentType, WeightedRule[]> = {
         /\b(20\d{2}|19\d{2})\b/.test(normalizedText)
     },
     {
+      weight: -2.2,
+      reason: "Strategy, proposal, or report markers reduce resume confidence",
+      test: ({ normalizedText, topText }) =>
+        countMatches(`${topText}\n${normalizedText}`, [
+          /\bstrategy\b/i,
+          /\bproposal\b/i,
+          /\broadmap\b/i,
+          /\bexecutive summary\b/i,
+          /\bimplementation plan\b/i,
+          /\bstakeholders?\b/i,
+          /\bdeliverables?\b/i,
+          /\bmilestones?\b/i
+        ]) >= 2
+    },
+    {
       weight: -1.8,
       reason: "Billing and legal signals reduce resume confidence",
       test: ({ normalizedText }) =>
@@ -184,6 +199,12 @@ const rules: Record<DocumentType, WeightedRule[]> = {
   ],
   strategy: [
     {
+      weight: 1.6,
+      reason: "Top-of-document title or heading suggests strategy content",
+      test: ({ topText }) =>
+        countMatches(topText, [/\bstrategy\b/i, /\broadmap\b/i, /\bstrategic plan\b/i, /\bvision\b/i]) >= 1
+    },
+    {
       weight: 2.4,
       reason: "Strategy planning vocabulary detected",
       test: ({ normalizedText }) =>
@@ -207,6 +228,12 @@ const rules: Record<DocumentType, WeightedRule[]> = {
     }
   ],
   proposal: [
+    {
+      weight: 1.6,
+      reason: "Top-of-document title suggests proposal content",
+      test: ({ topText }) =>
+        countMatches(topText, [/\bproposal\b/i, /\bscope of work\b/i, /\bstatement of work\b/i]) >= 1
+    },
     {
       weight: 2.4,
       reason: "Proposal and scope vocabulary detected",

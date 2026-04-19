@@ -14,8 +14,8 @@ import { TableRenderer } from "@/components/table-renderer";
 type TabKey = "overview" | "structured" | "rawText" | "rawJson";
 
 const tabs: { key: TabKey; label: string }[] = [
-  { key: "overview", label: "Overview" },
   { key: "structured", label: "Structured Data" },
+  { key: "overview", label: "Overview" },
   { key: "rawText", label: "Raw Text" },
   { key: "rawJson", label: "Raw JSON" }
 ];
@@ -25,7 +25,7 @@ interface ResultTabsProps {
 }
 
 export function ResultTabs({ result }: ResultTabsProps) {
-  const [activeTab, setActiveTab] = useState<TabKey>("overview");
+  const [activeTab, setActiveTab] = useState<TabKey>("structured");
 
   return (
     <div className="space-y-6">

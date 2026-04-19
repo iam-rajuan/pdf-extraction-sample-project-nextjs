@@ -27,6 +27,10 @@ export function shouldFallbackToGeneric(
     return true;
   }
 
+  if ((classification.type === "strategy" || classification.type === "proposal") && classification.confidence < 0.62) {
+    return true;
+  }
+
   return populatedFields < 2 && meaningfulSections < 1;
 }
 
