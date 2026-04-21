@@ -99,15 +99,16 @@ export default function HomePage() {
       <div className="grid gap-10">
         <section className="grid gap-4">
           <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
-            South African Tender Extraction MVP
+            South African Tender Extraction POC
           </span>
           <div className="grid gap-4 lg:max-w-3xl">
             <h1 className="text-4xl font-semibold tracking-tight text-slate-950">
-              Extract structured tender data from government PDFs
+              Real upload to normalized tender JSON
             </h1>
             <p className="text-base leading-8 text-slate-600">
-              Upload a tender PDF and receive one normalized JSON schema covering metadata,
-              compliance, SBD forms, returnables, contacts, and technical scope.
+              Upload a tender PDF and receive one fixed schema for downstream processing:
+              metadata, mandatory compliance, SBD forms, returnables, contacts, and technical
+              scope.
             </p>
           </div>
         </section>
@@ -127,20 +128,20 @@ export default function HomePage() {
 
           <div className="glass-panel rounded-2xl border border-white/70 p-6 shadow-soft">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-              Extraction Pipeline
+              Real Extraction Pipeline
             </p>
             <div className="mt-4 space-y-4 text-sm leading-7 text-slate-600">
               <p>
-                <span className="font-semibold text-slate-900">1. Parse PDF text</span>{" "}
-                with server-side `pdf-parse` and page-level capture where available.
+                <span className="font-semibold text-slate-900">1. Real upload</span>{" "}
+                accepts the selected PDF and processes it on the server.
               </p>
               <p>
-                <span className="font-semibold text-slate-900">2. Preprocess tender content</span>{" "}
-                with label detection and chunking for variable layouts.
+                <span className="font-semibold text-slate-900">2. Real extraction</span>{" "}
+                parses PDF text, detects tender labels, and maps content with OpenAI.
               </p>
               <p>
-                <span className="font-semibold text-slate-900">3. Validate structured JSON</span>{" "}
-                through OpenAI extraction, zod validation, and normalization.
+                <span className="font-semibold text-slate-900">3. Normalized structured JSON</span>{" "}
+                is validated with zod and returned in the same schema every time.
               </p>
             </div>
           </div>

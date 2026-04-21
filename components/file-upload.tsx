@@ -49,10 +49,10 @@ export function FileUpload({ onFileSelect, error, disabled }: FileUploadProps) {
           <FileUp className="h-6 w-6" />
         </div>
         <div className="mt-4 space-y-2">
-          <p className="text-base font-semibold text-slate-900">Upload a PDF for backend extraction</p>
+          <p className="text-base font-semibold text-slate-900">Upload a PDF for real extraction</p>
           <p className="max-w-xl text-sm text-slate-500">
-            Drag and drop a PDF here, or browse from disk. Extraction runs on the server, not in
-            the browser.
+            Drag and drop a tender PDF here, or browse from disk. The uploaded file is parsed on
+            the server and mapped into normalized structured JSON.
           </p>
         </div>
         <span className="mt-5 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-medium text-slate-700">
