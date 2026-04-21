@@ -32,7 +32,7 @@ export function RawJsonViewer({ value, fileName = "tender-extraction.json" }: Ra
   return (
     <div className="rounded-2xl border border-slate-200 bg-slate-950 text-slate-100 shadow-soft">
       <div className="flex items-center justify-between border-b border-slate-800 px-4 py-3">
-        <p className="text-sm font-semibold">Normalized response JSON</p>
+        <p className="text-sm font-semibold">Fixed schema JSON</p>
         <div className="flex items-center gap-2">
           <button
             type="button"

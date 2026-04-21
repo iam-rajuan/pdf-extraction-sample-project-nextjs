@@ -49,15 +49,13 @@ export function normalizeTenderExtraction(
   const normalized = normalizeStrings(merged) as TenderExtraction;
   normalizeDatesAndTimes(normalized);
   normalizeContacts(normalized);
-  normalizeBooleans(normalized);
   coerceTenderArrays(normalized);
+  normalizeBooleans(normalized);
+  normalizeSubmissionFields(normalized);
+  normalizeSbdForms(normalized);
+  normalizeConciseFields(normalized);
   trimLargeSections(normalized);
-
-  normalized.sbd_forms_detected = dedupeByJson(normalized.sbd_forms_detected);
-  normalized.returnable_documents = dedupeByJson(normalized.returnable_documents);
-  normalized.compliance_requirements.other_requirements = dedupeByJson(
-    normalized.compliance_requirements.other_requirements
-  );
+  dedupeTenderLists(normalized);
 
   return tenderExtractionSchema.parse(normalized);
 }
@@ -80,14 +78,14 @@ export function mergeTenderExtractions(
     ...base.contact_details.other_contacts,
     ...next.contact_details.other_contacts
   ]);
-  merged.sbd_forms_detected = dedupeByJson([
-    ...base.sbd_forms_detected,
-    ...next.sbd_forms_detected
-  ]);
-  merged.returnable_documents = dedupeByJson([
-    ...base.returnable_documents,
-    ...next.returnable_documents
-  ]);
+  merged.sbd_forms_detected = dedupeByKey(
+    [...base.sbd_forms_detected, ...next.sbd_forms_detected],
+    (item) => item.form
+  );
+  merged.returnable_documents = dedupeByKey(
+    [...base.returnable_documents, ...next.returnable_documents],
+    (item) => item.item
+  );
   merged.technical_scope.requirements = dedupeStrings([
     ...base.technical_scope.requirements,
     ...next.technical_scope.requirements
@@ -109,35 +107,32 @@ export function mergeTenderExtractions(
     ...next.raw_supporting_sections.unmapped_but_relevant_text
   ]).slice(0, 8);
 
-  merged.compliance_requirements.tax_compliance.required =
-    base.compliance_requirements.tax_compliance.required ||
-    next.compliance_requirements.tax_compliance.required;
-  merged.compliance_requirements.csd_registration.required =
-    base.compliance_requirements.csd_registration.required ||
-    next.compliance_requirements.csd_registration.required;
-  merged.compliance_requirements.bbbee.required =
-    base.compliance_requirements.bbbee.required || next.compliance_requirements.bbbee.required;
-  merged.compliance_requirements.declaration_of_interest.required =
-    base.compliance_requirements.declaration_of_interest.required ||
-    next.compliance_requirements.declaration_of_interest.required;
-  merged.compliance_requirements.cidb.required =
-    base.compliance_requirements.cidb.required || next.compliance_requirements.cidb.required;
-  merged.compliance_requirements.psira.required =
-    base.compliance_requirements.psira.required || next.compliance_requirements.psira.required;
-  merged.evaluation_readiness.pricing_mentioned =
-    base.evaluation_readiness.pricing_mentioned || next.evaluation_readiness.pricing_mentioned;
-  merged.evaluation_readiness.functionality_mentioned =
-    base.evaluation_readiness.functionality_mentioned ||
-    next.evaluation_readiness.functionality_mentioned;
-  merged.evaluation_readiness.prequalification_mentioned =
-    base.evaluation_readiness.prequalification_mentioned ||
-    next.evaluation_readiness.prequalification_mentioned;
-  merged.evaluation_readiness.preference_points_mentioned =
-    base.evaluation_readiness.preference_points_mentioned ||
-    next.evaluation_readiness.preference_points_mentioned;
+  for (const key of complianceKeys) {
+    merged.compliance_requirements[key].required =
+      base.compliance_requirements[key].required || next.compliance_requirements[key].required;
+    merged.compliance_requirements[key].details =
+      base.compliance_requirements[key].details ?? next.compliance_requirements[key].details;
+  }
+
+  merged.compliance_requirements.other_requirements = dedupeByKey(
+    [
+      ...base.compliance_requirements.other_requirements,
+      ...next.compliance_requirements.other_requirements
+    ],
+    (item) => item.name
+  );
 
   return merged;
 }
+
+const complianceKeys = [
+  "tax_compliance",
+  "csd_registration",
+  "bbbee",
+  "declaration_of_interest",
+  "cidb",
+  "psira"
+] as const;
 
 function normalizeDatesAndTimes(extraction: TenderExtraction) {
   extraction.tender_metadata.issue_date = normalizeDate(extraction.tender_metadata.issue_date);
@@ -163,19 +158,13 @@ function normalizeContacts(extraction: TenderExtraction) {
     for (const contact of group) {
       contact.email = normalizeEmail(contact.email);
       contact.phone = normalizePhone(contact.phone);
+      contact.notes = limitText(contact.notes, 160);
     }
   }
 }
 
-function normalizeBooleans(extraction: TenderExtraction) {
-  const briefing = extraction.tender_metadata.briefing_session;
-  if (briefing.required === null && /compulsory|mandatory|required/i.test(briefing.notes ?? "")) {
-    briefing.required = true;
-  }
-}
-
 function coerceTenderArrays(extraction: TenderExtraction) {
-  extraction.sbd_forms_detected = extraction.sbd_forms_detected.map((item) =>
+  extraction.sbd_forms_detected = (extraction.sbd_forms_detected as unknown[]).map((item) =>
     typeof item === "string"
       ? {
           form: item,
@@ -183,18 +172,31 @@ function coerceTenderArrays(extraction: TenderExtraction) {
           details: null
         }
       : item
-  );
-  extraction.returnable_documents = extraction.returnable_documents.map((item) =>
-    typeof item === "string"
-      ? {
-          name: item,
-          mandatory: null,
-          details: null
-        }
-      : item
-  );
+  ) as TenderExtraction["sbd_forms_detected"];
+
+  extraction.returnable_documents = (extraction.returnable_documents as unknown[]).map((item) => {
+    if (typeof item === "string") {
+      return {
+        item,
+        mandatory: null,
+        details: null
+      };
+    }
+
+    if (item && typeof item === "object" && "name" in item && !("item" in item)) {
+      const legacy = item as { name?: unknown; mandatory?: unknown; details?: unknown };
+      return {
+        item: legacy.name,
+        mandatory: legacy.mandatory,
+        details: legacy.details
+      };
+    }
+
+    return item;
+  }) as TenderExtraction["returnable_documents"];
+
   extraction.compliance_requirements.other_requirements =
-    extraction.compliance_requirements.other_requirements.map((item) =>
+    (extraction.compliance_requirements.other_requirements as unknown[]).map((item) =>
       typeof item === "string"
         ? {
             name: item,
@@ -202,18 +204,126 @@ function coerceTenderArrays(extraction: TenderExtraction) {
             details: null
           }
         : item
+    ) as TenderExtraction["compliance_requirements"]["other_requirements"];
+}
+
+function normalizeBooleans(extraction: TenderExtraction) {
+  const briefing = extraction.tender_metadata.briefing_session;
+  if (briefing.required === null) {
+    briefing.required = normalizeNullableBoolean(briefing.required, briefing.notes);
+  }
+
+  for (const key of complianceKeys) {
+    const requirement = extraction.compliance_requirements[key];
+    requirement.required = normalizeRequiredBoolean(requirement.required, requirement.details);
+  }
+
+  for (const requirement of extraction.compliance_requirements.other_requirements) {
+    requirement.required = normalizeRequiredBoolean(requirement.required, requirement.details);
+  }
+
+  for (const form of extraction.sbd_forms_detected) {
+    form.mandatory = normalizeNullableBoolean(form.mandatory, form.details);
+  }
+
+  for (const item of extraction.returnable_documents) {
+    item.mandatory = normalizeNullableBoolean(item.mandatory, item.details);
+  }
+}
+
+function normalizeSubmissionFields(extraction: TenderExtraction) {
+  extraction.tender_metadata.submission_method = normalizeSubmissionMethod(
+    extraction.tender_metadata.submission_method
+  );
+}
+
+function normalizeSbdForms(extraction: TenderExtraction) {
+  extraction.sbd_forms_detected = extraction.sbd_forms_detected
+    .map((form) => ({
+      ...form,
+      form: normalizeSbdName(form.form),
+      details: limitText(form.details, 140)
+    }))
+    .filter((form) => Boolean(form.form));
+}
+
+function normalizeConciseFields(extraction: TenderExtraction) {
+  const metadata = extraction.tender_metadata;
+  metadata.title = limitText(metadata.title, 160);
+  metadata.description = limitText(metadata.description, 280);
+  metadata.issuing_entity = limitText(metadata.issuing_entity, 140);
+  metadata.department = limitText(metadata.department, 140);
+  metadata.municipality = limitText(metadata.municipality, 140);
+  metadata.province = limitText(metadata.province, 80);
+  metadata.validity_period = limitText(metadata.validity_period, 80);
+  metadata.submission_address = limitText(metadata.submission_address, 220);
+  metadata.submission_portal = limitText(metadata.submission_portal, 160);
+  metadata.briefing_session.venue = limitText(metadata.briefing_session.venue, 180);
+  metadata.briefing_session.notes = limitText(metadata.briefing_session.notes, 220);
+
+  for (const key of complianceKeys) {
+    extraction.compliance_requirements[key].details = limitText(
+      extraction.compliance_requirements[key].details,
+      180
     );
+  }
+
+  extraction.compliance_requirements.other_requirements =
+    extraction.compliance_requirements.other_requirements.map((item) => ({
+      ...item,
+      name: limitRequiredText(item.name, 120),
+      details: limitText(item.details, 180)
+    }));
+  extraction.returnable_documents = extraction.returnable_documents.map((item) => ({
+    ...item,
+    item: limitRequiredText(item.item, 140),
+    details: limitText(item.details, 180)
+  }));
+  extraction.technical_scope.summary = limitText(extraction.technical_scope.summary, 420);
+  extraction.technical_scope.requirements = extraction.technical_scope.requirements
+    .map((item) => limitRequiredText(item, 180))
+    .slice(0, 30);
+  extraction.technical_scope.deliverables = extraction.technical_scope.deliverables
+    .map((item) => limitRequiredText(item, 180))
+    .slice(0, 30);
+  extraction.technical_scope.performance_expectations =
+    extraction.technical_scope.performance_expectations
+      .map((item) => limitRequiredText(item, 180))
+      .slice(0, 30);
 }
 
 function trimLargeSections(extraction: TenderExtraction) {
   extraction.raw_supporting_sections.important_clauses =
     extraction.raw_supporting_sections.important_clauses
-      .map((item) => limitText(item, 600))
+      .map((item) => limitRequiredText(item, 600))
       .filter(Boolean);
   extraction.raw_supporting_sections.unmapped_but_relevant_text =
     extraction.raw_supporting_sections.unmapped_but_relevant_text
-      .map((item) => limitText(item, 500))
+      .map((item) => limitRequiredText(item, 500))
       .filter(Boolean);
+}
+
+function dedupeTenderLists(extraction: TenderExtraction) {
+  extraction.sbd_forms_detected = dedupeByKey(extraction.sbd_forms_detected, (item) => item.form);
+  extraction.returnable_documents = dedupeByKey(
+    extraction.returnable_documents,
+    (item) => item.item
+  );
+  extraction.compliance_requirements.other_requirements = dedupeByKey(
+    extraction.compliance_requirements.other_requirements,
+    (item) => item.name
+  );
+  extraction.technical_scope.requirements = dedupeStrings(extraction.technical_scope.requirements);
+  extraction.technical_scope.deliverables = dedupeStrings(extraction.technical_scope.deliverables);
+  extraction.technical_scope.performance_expectations = dedupeStrings(
+    extraction.technical_scope.performance_expectations
+  );
+  extraction.raw_supporting_sections.important_clauses = dedupeStrings(
+    extraction.raw_supporting_sections.important_clauses
+  );
+  extraction.raw_supporting_sections.unmapped_but_relevant_text = dedupeStrings(
+    extraction.raw_supporting_sections.unmapped_but_relevant_text
+  );
 }
 
 function normalizeDate(value: string | null) {
@@ -221,7 +331,7 @@ function normalizeDate(value: string | null) {
     return null;
   }
 
-  const cleaned = value.trim();
+  const cleaned = value.trim().replace(/,/g, "");
   const numeric = cleaned.match(/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/);
   if (numeric) {
     const day = numeric[1].padStart(2, "0");
@@ -267,7 +377,8 @@ function normalizeTime(value: string | null) {
 }
 
 function normalizeEmail(value: string | null) {
-  return value ? value.trim().toLowerCase() : null;
+  const match = value?.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i);
+  return match ? match[0].toLowerCase() : null;
 }
 
 function normalizePhone(value: string | null) {
@@ -276,6 +387,56 @@ function normalizePhone(value: string | null) {
   }
 
   return value.replace(/[^\d+]/g, "").replace(/^27/, "+27").trim() || null;
+}
+
+function normalizeSubmissionMethod(value: string | null) {
+  if (!value) {
+    return null;
+  }
+
+  const lower = value.toLowerCase();
+  if (/email|e-mail/.test(lower)) {
+    return "email";
+  }
+  if (/portal|online|e[- ]?tender|upload|website|web site/.test(lower)) {
+    return "online";
+  }
+  if (/hand|physical|box|tender box|deliver|courier|post/.test(lower)) {
+    return "physical";
+  }
+  return limitText(value, 80);
+}
+
+function normalizeSbdName(value: string | null) {
+  if (!value) {
+    return "";
+  }
+
+  const match = value.toUpperCase().match(/\bSBD\s*([0-9]+(?:\.[0-9]+)?[A-Z]?)\b/);
+  return match ? `SBD ${match[1]}` : limitRequiredText(value.toUpperCase(), 40);
+}
+
+function normalizeRequiredBoolean(value: unknown, details: string | null) {
+  const normalized = normalizeNullableBoolean(value, details);
+  return normalized ?? false;
+}
+
+function normalizeNullableBoolean(value: unknown, details: string | null) {
+  if (typeof value === "boolean") {
+    return value;
+  }
+  if (typeof value === "string") {
+    if (/^(true|yes|required|mandatory|compulsory)$/i.test(value.trim())) {
+      return true;
+    }
+    if (/^(false|no|not required|optional)$/i.test(value.trim())) {
+      return false;
+    }
+  }
+  if (details && /\b(must|required|mandatory|compulsory|shall|returnable)\b/i.test(details)) {
+    return true;
+  }
+  return null;
 }
 
 function normalizeStrings(value: unknown): unknown {
@@ -337,8 +498,8 @@ function deepMergePreferExisting(target: unknown, source: unknown): unknown {
 function dedupeStrings(values: string[]) {
   const seen = new Set<string>();
   return values.filter((value) => {
-    const key = value.toLowerCase();
-    if (seen.has(key)) {
+    const key = normalizeDedupeKey(value);
+    if (!key || seen.has(key)) {
       return false;
     }
     seen.add(key);
@@ -358,6 +519,29 @@ function dedupeByJson<T>(values: T[]) {
   });
 }
 
-function limitText(value: string, maxLength: number) {
+function dedupeByKey<T>(values: T[], getKey: (value: T) => string | null) {
+  const seen = new Set<string>();
+  return values.filter((value) => {
+    const key = normalizeDedupeKey(getKey(value));
+    if (!key || seen.has(key)) {
+      return false;
+    }
+    seen.add(key);
+    return true;
+  });
+}
+
+function normalizeDedupeKey(value: string | null) {
+  return value?.toLowerCase().replace(/[^a-z0-9]+/g, " ").trim() ?? "";
+}
+
+function limitText(value: string | null, maxLength: number) {
+  if (!value) {
+    return null;
+  }
   return value.length > maxLength ? `${value.slice(0, maxLength - 3).trim()}...` : value;
+}
+
+function limitRequiredText(value: string, maxLength: number) {
+  return limitText(value, maxLength) ?? "";
 }

@@ -77,13 +77,6 @@ export function createEmptyTenderExtraction(input: {
       deliverables: [],
       performance_expectations: []
     },
-    evaluation_readiness: {
-      pricing_mentioned: false,
-      functionality_mentioned: false,
-      prequalification_mentioned: false,
-      preference_points_mentioned: false,
-      evaluation_summary: null
-    },
     raw_supporting_sections: {
       important_clauses: [],
       unmapped_but_relevant_text: []

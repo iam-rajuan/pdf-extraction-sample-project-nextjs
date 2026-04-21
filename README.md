@@ -1,6 +1,6 @@
-# South African Tender Extraction MVP
+# South African Tender Extraction POC
 
-Next.js App Router MVP for extracting structured data from South African government tender PDFs.
+Next.js App Router proof of concept for real upload and structured extraction from South African government tender PDFs.
 
 The app accepts real PDF uploads, extracts machine-readable text on the server, preprocesses tender content, calls OpenAI for schema-aware extraction, validates the output with Zod, normalizes values, and renders the final JSON in the browser.
 
@@ -20,7 +20,6 @@ Create `.env.local` from `.env.example`:
 ```bash
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4.1
-OPENAI_EXTRACTION_MODEL=gpt-4.1
 MAX_FILE_SIZE_MB=20
 ```
 
@@ -63,14 +62,13 @@ Successful extraction returns one consistent top-level tender JSON object with:
 - `sbd_forms_detected`
 - `returnable_documents`
 - `technical_scope`
-- `evaluation_readiness`
 - `raw_supporting_sections`
 
 Unavailable values remain `null`, `false`, or empty arrays as appropriate.
 
 ## Important Scope
 
-This phase is extraction and structuring only. It does not implement bidder scoring, ranking, comparison, or evaluation dashboards. The `evaluation_readiness` object is included so a later scoring module can be added without changing the extraction contract.
+This phase is extraction and structuring only. It does not implement bidder scoring, ranking, comparison, or evaluation dashboards.
 
 ## Current Limitations
 

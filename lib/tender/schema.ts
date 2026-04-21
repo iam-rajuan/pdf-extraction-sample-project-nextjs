@@ -28,7 +28,7 @@ export const sbdFormSchema = z.object({
 });
 
 export const returnableDocumentSchema = z.object({
-  name: z.string().trim().min(1),
+  item: z.string().trim().min(1),
   mandatory: z.boolean().nullable(),
   details: nullableString
 });
@@ -87,18 +87,11 @@ export const tenderExtractionSchema = z.object({
     deliverables: z.array(z.string()),
     performance_expectations: z.array(z.string())
   }),
-  evaluation_readiness: z.object({
-    pricing_mentioned: z.boolean(),
-    functionality_mentioned: z.boolean(),
-    prequalification_mentioned: z.boolean(),
-    preference_points_mentioned: z.boolean(),
-    evaluation_summary: nullableString
-  }),
   raw_supporting_sections: z.object({
     important_clauses: z.array(z.string()),
     unmapped_but_relevant_text: z.array(z.string())
   })
-});
+}).strict();
 
 export const tenderExtractionErrorSchema = z.object({
   success: z.literal(false),

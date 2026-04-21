@@ -24,6 +24,20 @@ export function ResultTabs({ result }: ResultTabsProps) {
 
   return (
     <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
+            Real extraction result
+          </p>
+          <h2 className="mt-1 text-xl font-semibold text-slate-950">
+            {result.document_info.file_name}
+          </h2>
+        </div>
+        <div className="rounded-full border border-emerald-200 bg-emerald-50 px-4 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-700">
+          Fixed schema JSON
+        </div>
+      </div>
+
       <div className="flex flex-wrap gap-2">
         {tabs.map((tab) => (
           <button
@@ -41,30 +55,7 @@ export function ResultTabs({ result }: ResultTabsProps) {
         ))}
       </div>
 
-      {activeTab === "summary" ? (
-        <div className="grid gap-4 lg:grid-cols-3">
-          <SummaryTile label="Bid Number" value={result.tender_metadata.bid_number} />
-          <SummaryTile label="Closing Date" value={result.tender_metadata.closing_date} />
-          <SummaryTile label="Closing Time" value={result.tender_metadata.closing_time} />
-          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft lg:col-span-3">
-            <StructuredDataRenderer
-              label="Core Tender Details"
-              data={{
-                title: result.tender_metadata.title,
-                description: result.tender_metadata.description,
-                issuing_entity: result.tender_metadata.issuing_entity,
-                department: result.tender_metadata.department,
-                municipality: result.tender_metadata.municipality,
-                province: result.tender_metadata.province,
-                submission_method: result.tender_metadata.submission_method,
-                submission_address: result.tender_metadata.submission_address,
-                submission_email: result.tender_metadata.submission_email,
-                submission_portal: result.tender_metadata.submission_portal
-              }}
-            />
-          </div>
-        </div>
-      ) : null}
+      {activeTab === "summary" ? <TenderSummary result={result} /> : null}
 
       {activeTab === "metadata" ? (
         <div className="space-y-5">
@@ -76,17 +67,16 @@ export function ResultTabs({ result }: ResultTabsProps) {
 
       {activeTab === "compliance" ? (
         <div className="space-y-5">
-          <Panel title="Compliance Requirements" data={result.compliance_requirements} />
+          <Panel title="Mandatory Compliance Requirements" data={result.compliance_requirements} />
           <Panel title="SBD Forms Detected" data={result.sbd_forms_detected} />
-          <Panel title="Evaluation Readiness" data={result.evaluation_readiness} />
         </div>
       ) : null}
 
       {activeTab === "scope" ? (
         <div className="space-y-5">
-          <Panel title="Technical Scope" data={result.technical_scope} />
-          <Panel title="Returnable Documents" data={result.returnable_documents} />
-          <Panel title="Supporting Sections" data={result.raw_supporting_sections} />
+          <Panel title="Technical Scope / Key Obligations" data={result.technical_scope} />
+          <Panel title="Returnable Documents / Submission Checklist" data={result.returnable_documents} />
+          <Panel title="Raw Supporting Sections" data={result.raw_supporting_sections} />
         </div>
       ) : null}
 
@@ -96,6 +86,37 @@ export function ResultTabs({ result }: ResultTabsProps) {
           fileName={`${result.document_info.file_name.replace(/\.pdf$/i, "")}-extraction.json`}
         />
       ) : null}
+    </div>
+  );
+}
+
+function TenderSummary({ result }: { result: TenderExtraction }) {
+  return (
+    <div className="grid gap-4 lg:grid-cols-3">
+      <SummaryTile label="Bid Number" value={result.tender_metadata.bid_number} />
+      <SummaryTile label="Closing Date" value={result.tender_metadata.closing_date} />
+      <SummaryTile label="Closing Time" value={result.tender_metadata.closing_time} />
+      <SummaryTile label="Submission Method" value={result.tender_metadata.submission_method} />
+      <SummaryTile label="SBD Forms" value={String(result.sbd_forms_detected.length)} />
+      <SummaryTile label="Returnables" value={String(result.returnable_documents.length)} />
+
+      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft lg:col-span-3">
+        <StructuredDataRenderer
+          label="Core Tender Details"
+          data={{
+            title: result.tender_metadata.title,
+            description: result.tender_metadata.description,
+            issuing_entity: result.tender_metadata.issuing_entity,
+            department: result.tender_metadata.department,
+            municipality: result.tender_metadata.municipality,
+            province: result.tender_metadata.province,
+            submission_address: result.tender_metadata.submission_address,
+            submission_email: result.tender_metadata.submission_email,
+            submission_portal: result.tender_metadata.submission_portal,
+            technical_summary: result.technical_scope.summary
+          }}
+        />
+      </div>
     </div>
   );
 }

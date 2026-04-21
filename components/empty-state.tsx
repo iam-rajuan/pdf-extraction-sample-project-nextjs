@@ -8,8 +8,8 @@ export function EmptyState() {
       </div>
       <h2 className="mt-4 text-lg font-semibold text-slate-900">No extraction yet</h2>
       <p className="mx-auto mt-2 max-w-2xl text-sm leading-7 text-slate-500">
-        Upload a PDF, run backend extraction, and review the structured output, raw text, raw JSON,
-        and extraction notes in one consistent interface.
+        Upload a PDF and run real extraction to review tender metadata, mandatory compliance,
+        SBD forms, returnables, technical scope, and the fixed raw JSON schema.
       </p>
     </div>
   );
