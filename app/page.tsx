@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { assertExtractionResponse } from "@/lib/pdf/normalize-response";
-import { extractionFailureResponseSchema } from "@/lib/schemas/extraction-response";
-import type { ExtractionResponse } from "@/types/extraction";
+import { tenderExtractionErrorSchema, tenderExtractionSchema } from "@/lib/tender/schema";
+import type { TenderExtraction } from "@/types/extraction";
 import { ActionBar } from "@/components/action-bar";
 import { EmptyState } from "@/components/empty-state";
 import { ErrorState } from "@/components/error-state";
@@ -16,7 +15,7 @@ export default function HomePage() {
   const [file, setFile] = useState<File | null>(null);
   const [uploadError, setUploadError] = useState<string | null>(null);
   const [requestError, setRequestError] = useState<string | null>(null);
-  const [result, setResult] = useState<ExtractionResponse | null>(null);
+  const [result, setResult] = useState<TenderExtraction | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   function handleFileSelect(selectedFile: File | null) {
@@ -73,21 +72,16 @@ export default function HomePage() {
       const payload = await response.json();
 
       if (!response.ok) {
-        const parsedFailure = extractionFailureResponseSchema.safeParse(payload);
+        const parsedFailure = tenderExtractionErrorSchema.safeParse(payload);
         setRequestError(
           parsedFailure.success
             ? parsedFailure.data.message
             : "The extraction request failed unexpectedly."
         );
-
-        if (parsedFailure.success) {
-          setResult(parsedFailure.data);
-        }
-
         return;
       }
 
-      const parsed = assertExtractionResponse(payload);
+      const parsed = tenderExtractionSchema.parse(payload);
       setResult(parsed);
     } catch (error) {
       setRequestError(
@@ -105,15 +99,15 @@ export default function HomePage() {
       <div className="grid gap-10">
         <section className="grid gap-4">
           <span className="text-xs font-semibold uppercase tracking-[0.3em] text-slate-500">
-            PDF Extraction Platform
+            South African Tender Extraction MVP
           </span>
           <div className="grid gap-4 lg:max-w-3xl">
             <h1 className="text-4xl font-semibold tracking-tight text-slate-950">
-              Upload PDFs, extract data, and review clean structured output
+              Extract structured tender data from government PDFs
             </h1>
             <p className="text-base leading-8 text-slate-600">
-              The workflow is intentionally simple: upload a PDF, run backend extraction, and
-              inspect the normalized structured result in one consistent review interface.
+              Upload a tender PDF and receive one normalized JSON schema covering metadata,
+              compliance, SBD forms, returnables, contacts, and technical scope.
             </p>
           </div>
         </section>
@@ -131,26 +125,22 @@ export default function HomePage() {
             />
           </div>
 
-          <div className="glass-panel rounded-3xl border border-white/70 p-6 shadow-soft">
+          <div className="glass-panel rounded-2xl border border-white/70 p-6 shadow-soft">
             <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-              Product priorities
+              Extraction Pipeline
             </p>
             <div className="mt-4 space-y-4 text-sm leading-7 text-slate-600">
               <p>
-                <span className="font-semibold text-slate-900">1. PDF upload</span>
-                {" "}
-                with validation and clean reset behavior.
+                <span className="font-semibold text-slate-900">1. Parse PDF text</span>{" "}
+                with server-side `pdf-parse` and page-level capture where available.
               </p>
               <p>
-                <span className="font-semibold text-slate-900">2. Data extraction</span>
-                {" "}
-                through a backend Node.js pipeline using `pdf-parse` and document-type heuristics.
+                <span className="font-semibold text-slate-900">2. Preprocess tender content</span>{" "}
+                with label detection and chunking for variable layouts.
               </p>
               <p>
-                <span className="font-semibold text-slate-900">3. Structured output</span>
-                {" "}
-                returned in one normalized schema for overview, fields, sections, entities, tables,
-                raw text, and JSON review.
+                <span className="font-semibold text-slate-900">3. Validate structured JSON</span>{" "}
+                through OpenAI extraction, zod validation, and normalization.
               </p>
             </div>
           </div>
@@ -158,7 +148,7 @@ export default function HomePage() {
 
         <section className="pb-12">
           {isLoading ? <Loader /> : null}
-          {!isLoading && requestError && !result ? <ErrorState message={requestError} /> : null}
+          {!isLoading && requestError ? <ErrorState message={requestError} /> : null}
           {!isLoading && result ? <ResultTabs result={result} /> : null}
           {!isLoading && !result && !requestError ? <EmptyState /> : null}
         </section>

@@ -10,6 +10,7 @@ export const documentTypeSchema = z.enum([
   "form",
   "strategy",
   "proposal",
+  "bid_notice",
   "unknown"
 ]);
 export const sourceTypeSchema = z.enum([

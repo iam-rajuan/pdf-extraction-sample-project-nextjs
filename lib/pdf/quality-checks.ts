@@ -72,7 +72,7 @@ export function qualityWarnings(text: string, result: ExtractorResult): string[]
     warnings.push("Useful raw text exists, but only limited structured fields were promoted.");
   }
 
-  if (result.sections.length === 0) {
+  if (result.sections.length === 0 && result.documentCategory !== "bid_notice") {
     warnings.push("No reliable sections were derived from the document body.");
   }
 

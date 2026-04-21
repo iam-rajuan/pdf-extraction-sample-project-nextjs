@@ -1,21 +1,36 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { extractTextFromPdf, isMeaningfulText } from "@/lib/pdf/extract-text";
-import {
-  normalizeExtractionFailure,
-  normalizeExtractionSuccess
-} from "@/lib/pdf/normalize-response";
-import { mockOcrFallback } from "@/lib/pdf/mock-ocr";
-import { summarizeStructuredData } from "@/lib/pdf/summarize-structured-data";
+import { isTenderExtractionError } from "@/lib/tender/extraction-error";
+import { extractTenderFromText } from "@/lib/tender/extraction-service";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const uploadSchema = z.object({
-  name: z.string().min(1),
-  type: z.string().min(1),
-  size: z.number().positive().max(15 * 1024 * 1024)
-});
+function maxFileSizeBytes() {
+  const configured = Number(process.env.MAX_FILE_SIZE_MB ?? 20);
+  const safeMegabytes = Number.isFinite(configured) && configured > 0 ? configured : 20;
+  return safeMegabytes * 1024 * 1024;
+}
+
+function uploadSchema() {
+  return z.object({
+    name: z.string().min(1),
+    type: z.string().min(1),
+    size: z.number().positive().max(maxFileSizeBytes())
+  });
+}
+
+function failure(message: string, warnings: string[] = [], status = 400) {
+  return NextResponse.json(
+    {
+      success: false,
+      message,
+      warnings
+    },
+    { status }
+  );
+}
 
 export async function POST(request: Request) {
   try {
@@ -23,17 +38,10 @@ export async function POST(request: Request) {
     const file = formData.get("file");
 
     if (!(file instanceof File)) {
-      return NextResponse.json(
-        normalizeExtractionFailure({
-          name: "unknown.pdf",
-          message: "No PDF file was provided.",
-          warnings: ["Upload a valid PDF file and try again."]
-        }),
-        { status: 400 }
-      );
+      return failure("No PDF file was provided.", ["Upload a valid PDF file and try again."]);
     }
 
-    const fileInput = uploadSchema.safeParse({
+    const fileInput = uploadSchema().safeParse({
       name: file.name,
       type: file.type || "application/octet-stream",
       size: file.size
@@ -43,13 +51,16 @@ export async function POST(request: Request) {
       file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf");
 
     if (!fileInput.success || !looksLikePdf) {
-      return NextResponse.json(
-        normalizeExtractionFailure({
-          name: file.name || "unknown.pdf",
-          message: "Only PDF files are supported for extraction.",
-          warnings: ["The uploaded file failed validation."]
-        }),
-        { status: 400 }
+      return failure("Only PDF files within the configured size limit are supported.", [
+        "The uploaded file failed validation."
+      ]);
+    }
+
+    if (!process.env.OPENAI_API_KEY) {
+      return failure(
+        "OpenAI extraction is not configured.",
+        ["Set OPENAI_API_KEY in your environment before extracting tender PDFs."],
+        500
       );
     }
 
@@ -57,95 +68,35 @@ export async function POST(request: Request) {
     const extracted = await extractTextFromPdf(buffer);
 
     if (!isMeaningfulText(extracted.text)) {
-      const mockOcr = await mockOcrFallback(file.name);
-
-      if (mockOcr.text && isMeaningfulText(mockOcr.text)) {
-        const ocrSummary = summarizeStructuredData(mockOcr.text);
-
-        return NextResponse.json(
-          normalizeExtractionSuccess({
-            name: file.name,
-            pages: extracted.pages,
-            type: ocrSummary.documentType,
-            sourceType: "ocr_fallback",
-            summary: `${ocrSummary.summary} OCR fallback architecture was used as a placeholder path.`,
-            confidence: Math.max(ocrSummary.confidence - 0.08, 0.3),
-            structuredData: ocrSummary.structuredData,
-            rawText: mockOcr.text,
-            warnings: [...ocrSummary.warnings, mockOcr.warning, ...ocrSummary.classification.reasons],
-            missingFields: ocrSummary.missingFields,
-            parser: mockOcr.provider,
-            ocrUsed: false,
-            status: "partial_success"
-          })
-        );
-      }
-
-      if (extracted.text.trim().length > 0) {
-        const partialSummary = summarizeStructuredData(extracted.text);
-
-        return NextResponse.json(
-          normalizeExtractionSuccess({
-            name: file.name,
-            pages: extracted.pages,
-            type: partialSummary.documentType,
-            sourceType: "scanned_pdf",
-            summary: `${partialSummary.summary} The extracted text was limited, so OCR is likely needed for higher fidelity.`,
-            confidence: Math.max(partialSummary.confidence - 0.2, 0.25),
-            structuredData: partialSummary.structuredData,
-            rawText: extracted.text,
-            warnings: [
-              ...partialSummary.warnings,
-              ...partialSummary.classification.reasons,
-              "The PDF appears to contain limited machine-readable text.",
-              mockOcr.warning
-            ],
-            missingFields: partialSummary.missingFields,
-            status: "partial_success"
-          })
-        );
-      }
-
-      return NextResponse.json(
-        normalizeExtractionFailure({
-          name: file.name,
-          pages: extracted.pages,
-          sourceType: "scanned_pdf",
-          message: "Could not extract enough usable content from the PDF.",
-          confidence: 0.2,
-          warnings: ["OCR may be required for scanned documents.", mockOcr.warning]
-        }),
-        { status: 422 }
+      return failure(
+        "Could not extract enough machine-readable text from the PDF.",
+        ["This MVP uses text-based PDF parsing. OCR can be added as a later fallback for scanned PDFs."],
+        422
       );
     }
 
-    const summary = summarizeStructuredData(extracted.text);
+    const tenderExtraction = await extractTenderFromText({
+      text: extracted.text,
+      fileName: file.name,
+      pageCount: extracted.pages
+    });
 
-    return NextResponse.json(
-      normalizeExtractionSuccess({
-        name: file.name,
-        pages: extracted.pages,
-        type: summary.documentType,
-        sourceType: "text_pdf",
-        summary: summary.summary,
-        confidence: summary.confidence,
-        structuredData: summary.structuredData,
-        rawText: extracted.text,
-        warnings: [...summary.warnings, ...summary.classification.reasons],
-        missingFields: summary.missingFields
-      })
-    );
+    return NextResponse.json(tenderExtraction);
   } catch (error) {
-    const message =
-      error instanceof Error ? error.message : "Unexpected PDF extraction failure.";
+    if (isTenderExtractionError(error)) {
+      console.error("Tender extraction failed", {
+        message: error.message,
+        status: error.status
+      });
 
-    return NextResponse.json(
-      normalizeExtractionFailure({
-        name: "unknown.pdf",
-        message: "The backend could not process the uploaded PDF.",
-        warnings: [message]
-      }),
-      { status: 500 }
-    );
+      return failure(error.message, error.warnings, error.status);
+    }
+
+    const message =
+      error instanceof Error ? error.message : "Unexpected tender extraction failure.";
+
+    console.error("Tender extraction route failed", error);
+
+    return failure("The backend could not process the uploaded tender PDF.", [message], 500);
   }
 }

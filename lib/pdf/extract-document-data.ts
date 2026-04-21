@@ -1,4 +1,5 @@
 import { classifyDocumentType } from "@/lib/pdf/detect-document-type";
+import { extractBidNoticeData } from "@/lib/pdf/extract-bid-notice-data";
 import { extractContractData } from "@/lib/pdf/extract-contract-data";
 import { extractFormData } from "@/lib/pdf/extract-form-data";
 import { extractGenericDocumentData } from "@/lib/pdf/extract-generic-document-data";
@@ -39,6 +40,8 @@ function executeExtractor(type: DocumentType, context: ExtractionContext): Extra
       return extractStrategyData(context, "strategy");
     case "proposal":
       return extractStrategyData(context, "proposal");
+    case "bid_notice":
+      return extractBidNoticeData(context);
     case "unknown":
     default:
       return extractGenericDocumentData(context);

@@ -1,3 +1,23 @@
+import type {
+  ContactDetail,
+  OtherRequirement,
+  RequirementDetail,
+  ReturnableDocument,
+  SbdForm,
+  TenderExtraction,
+  TenderExtractionError
+} from "@/lib/tender/schema";
+
+export type {
+  ContactDetail,
+  OtherRequirement,
+  RequirementDetail,
+  ReturnableDocument,
+  SbdForm,
+  TenderExtraction,
+  TenderExtractionError
+};
+
 export type ExtractionStatus = "success" | "partial_success" | "failed";
 
 export type DocumentType =
@@ -9,6 +29,7 @@ export type DocumentType =
   | "form"
   | "strategy"
   | "proposal"
+  | "bid_notice"
   | "unknown";
 
 export type SourceType = "text_pdf" | "scanned_pdf" | "ocr_fallback" | "unknown";

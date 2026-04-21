@@ -3,6 +3,7 @@ import pdfParse from "pdf-parse";
 export interface ExtractedTextResult {
   text: string;
   pages: number;
+  pageTexts: string[];
   info?: Record<string, unknown>;
 }
 
@@ -29,11 +30,23 @@ export function isMeaningfulText(text: string): boolean {
 }
 
 export async function extractTextFromPdf(buffer: Buffer): Promise<ExtractedTextResult> {
-  const parsed = await pdfParse(buffer);
+  const pageTexts: string[] = [];
+  const parsed = await pdfParse(buffer, {
+    pagerender: async (pageData) => {
+      const textContent = await pageData.getTextContent();
+      const pageText = textContent.items
+        .map((item: { str?: string }) => item.str ?? "")
+        .join(" ");
+
+      pageTexts.push(sanitizeExtractedText(pageText));
+      return pageText;
+    }
+  });
 
   return {
     text: sanitizeExtractedText(parsed.text ?? ""),
     pages: parsed.numpages ?? 0,
+    pageTexts,
     info: parsed.info ? (parsed.info as Record<string, unknown>) : undefined
   };
 }

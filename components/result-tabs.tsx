@@ -1,31 +1,26 @@
 "use client";
 
 import { useState } from "react";
-import type { ExtractionResponse } from "@/types/extraction";
-import { ExtractionOverview } from "@/components/extraction-overview";
-import { SummaryCard } from "@/components/summary-card";
-import { StructuredDataRenderer } from "@/components/structured-data-renderer";
-import { SectionRenderer } from "@/components/section-renderer";
-import { WarningPanel } from "@/components/warning-panel";
-import { ExtractedTextViewer } from "@/components/extracted-text-viewer";
+import type { TenderExtraction } from "@/types/extraction";
 import { RawJsonViewer } from "@/components/raw-json-viewer";
-import { TableRenderer } from "@/components/table-renderer";
+import { StructuredDataRenderer } from "@/components/structured-data-renderer";
 
-type TabKey = "overview" | "structured" | "rawText" | "rawJson";
+type TabKey = "summary" | "metadata" | "compliance" | "scope" | "json";
 
 const tabs: { key: TabKey; label: string }[] = [
-  { key: "structured", label: "Structured Data" },
-  { key: "overview", label: "Overview" },
-  { key: "rawText", label: "Raw Text" },
-  { key: "rawJson", label: "Raw JSON" }
+  { key: "summary", label: "Tender Summary" },
+  { key: "metadata", label: "Metadata" },
+  { key: "compliance", label: "Compliance" },
+  { key: "scope", label: "Scope & Returnables" },
+  { key: "json", label: "Raw JSON" }
 ];
 
 interface ResultTabsProps {
-  result: ExtractionResponse;
+  result: TenderExtraction;
 }
 
 export function ResultTabs({ result }: ResultTabsProps) {
-  const [activeTab, setActiveTab] = useState<TabKey>("structured");
+  const [activeTab, setActiveTab] = useState<TabKey>("summary");
 
   return (
     <div className="space-y-6">
@@ -46,60 +41,80 @@ export function ResultTabs({ result }: ResultTabsProps) {
         ))}
       </div>
 
-      {activeTab === "overview" ? (
-        <div className="space-y-6">
-          <ExtractionOverview result={result} />
-          <SummaryCard summary={result.summary || "No summary was generated."} />
-          <WarningPanel warnings={result.warnings} missingFields={result.missingFields} />
+      {activeTab === "summary" ? (
+        <div className="grid gap-4 lg:grid-cols-3">
+          <SummaryTile label="Bid Number" value={result.tender_metadata.bid_number} />
+          <SummaryTile label="Closing Date" value={result.tender_metadata.closing_date} />
+          <SummaryTile label="Closing Time" value={result.tender_metadata.closing_time} />
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft lg:col-span-3">
+            <StructuredDataRenderer
+              label="Core Tender Details"
+              data={{
+                title: result.tender_metadata.title,
+                description: result.tender_metadata.description,
+                issuing_entity: result.tender_metadata.issuing_entity,
+                department: result.tender_metadata.department,
+                municipality: result.tender_metadata.municipality,
+                province: result.tender_metadata.province,
+                submission_method: result.tender_metadata.submission_method,
+                submission_address: result.tender_metadata.submission_address,
+                submission_email: result.tender_metadata.submission_email,
+                submission_portal: result.tender_metadata.submission_portal
+              }}
+            />
+          </div>
         </div>
       ) : null}
 
-      {activeTab === "structured" ? (
-        <div className="space-y-6">
-          {result.success && result.structuredData ? (
-            <>
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
-                <StructuredDataRenderer
-                  data={{
-                    documentTitle: result.structuredData.documentTitle ?? null,
-                    documentCategory: result.structuredData.documentCategory ?? result.document.type
-                  }}
-                  label="Document"
-                />
-              </div>
-              <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
-                <StructuredDataRenderer data={result.structuredData.fields} label="Fields" />
-              </div>
-              {result.structuredData.entities &&
-              Object.keys(result.structuredData.entities).length > 0 ? (
-                <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
-                  <StructuredDataRenderer data={result.structuredData.entities} label="Entities" />
-                </div>
-              ) : null}
-              {result.structuredData.tables && result.structuredData.tables.length > 0 ? (
-                <div className="space-y-4">
-                  {result.structuredData.tables.map((table, index) => (
-                    <div key={`table-${index}`} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
-                      <p className="mb-3 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-                        Table {index + 1}
-                      </p>
-                      <TableRenderer table={table} />
-                    </div>
-                  ))}
-                </div>
-              ) : null}
-              <SectionRenderer sections={result.structuredData.sections} />
-            </>
-          ) : (
-            <div className="rounded-2xl border border-slate-200 bg-white p-5 text-sm text-slate-500 shadow-soft">
-              No structured data was returned for this document.
-            </div>
-          )}
+      {activeTab === "metadata" ? (
+        <div className="space-y-5">
+          <Panel title="Document Info" data={result.document_info} />
+          <Panel title="Tender Metadata" data={result.tender_metadata} />
+          <Panel title="Contact Details" data={result.contact_details} />
         </div>
       ) : null}
 
-      {activeTab === "rawText" ? <ExtractedTextViewer text={result.rawText} /> : null}
-      {activeTab === "rawJson" ? <RawJsonViewer value={result} /> : null}
+      {activeTab === "compliance" ? (
+        <div className="space-y-5">
+          <Panel title="Compliance Requirements" data={result.compliance_requirements} />
+          <Panel title="SBD Forms Detected" data={result.sbd_forms_detected} />
+          <Panel title="Evaluation Readiness" data={result.evaluation_readiness} />
+        </div>
+      ) : null}
+
+      {activeTab === "scope" ? (
+        <div className="space-y-5">
+          <Panel title="Technical Scope" data={result.technical_scope} />
+          <Panel title="Returnable Documents" data={result.returnable_documents} />
+          <Panel title="Supporting Sections" data={result.raw_supporting_sections} />
+        </div>
+      ) : null}
+
+      {activeTab === "json" ? (
+        <RawJsonViewer
+          value={result}
+          fileName={`${result.document_info.file_name.replace(/\.pdf$/i, "")}-extraction.json`}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function SummaryTile({ label, value }: { label: string; value: string | null }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
+      <p className="mt-2 break-words text-lg font-semibold text-slate-900">
+        {value || "Not found"}
+      </p>
+    </div>
+  );
+}
+
+function Panel({ title, data }: { title: string; data: unknown }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-soft">
+      <StructuredDataRenderer data={data as never} label={title} />
     </div>
   );
 }

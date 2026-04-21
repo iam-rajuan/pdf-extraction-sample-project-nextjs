@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "PDF Extraction Platform MVP",
-  description: "Backend-first PDF extraction and structured data review workflow."
+  title: "South African Tender Extraction MVP",
+  description: "Structured extraction for South African government tender PDFs."
 };
 
 export default function RootLayout({

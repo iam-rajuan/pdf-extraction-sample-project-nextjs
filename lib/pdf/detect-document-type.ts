@@ -256,6 +256,53 @@ const rules: Record<DocumentType, WeightedRule[]> = {
         (/\btimeline\b/i.test(normalizedText) || /\bmilestones?\b/i.test(normalizedText))
     }
   ],
+  bid_notice: [
+    {
+      weight: 2.7,
+      reason: "South African tender and bid notice markers detected",
+      test: ({ normalizedText, topText }) =>
+        countMatches(`${topText}\n${normalizedText}`, [
+          /\bbid notice\b/i,
+          /\binvitation for bids?\b/i,
+          /\binvitation for tender\b/i,
+          /\btender notice\b/i,
+          /\brequest for quotation\b/i,
+          /\brequest for proposal\b/i,
+          /\bmunicipality\b/i,
+          /\bscm\b/i,
+          /\bsbd\s*\d/i
+        ]) >= 2
+    },
+    {
+      weight: 1.8,
+      reason: "Tender closing and South African compliance markers fit procurement documents",
+      test: ({ normalizedText }) =>
+        countMatches(normalizedText, [
+          /\bclosing date\b/i,
+          /\bclosing time\b/i,
+          /\bopening date\b/i,
+          /\bopening time\b/i,
+          /\bbid security\b/i,
+          /\btender fee\b/i,
+          /\bcsd\b/i,
+          /\bbbbee\b/i,
+          /\bdeclaration of interest\b/i
+        ]) >= 2
+    },
+    {
+      weight: 1.3,
+      reason: "SBD and returnable document markers support tender classification",
+      test: ({ normalizedText }) =>
+        countMatches(normalizedText, [
+          /\bsbd\s*1\b/i,
+          /\bsbd\s*3\b/i,
+          /\bsbd\s*4\b/i,
+          /\bsbd\s*6\.1\b/i,
+          /\breturnable documents?\b/i,
+          /\bsupporting documents?\b/i
+        ]) >= 2
+    }
+  ],
   unknown: []
 };
 
@@ -278,6 +325,7 @@ export function classifyDocumentType(text: string): DocumentTypeClassification {
     form: 0,
     strategy: 0,
     proposal: 0,
+    bid_notice: 0,
     unknown: 0
   };
 
