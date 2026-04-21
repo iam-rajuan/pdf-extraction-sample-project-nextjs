@@ -26,7 +26,7 @@ export async function extractTenderChunkWithOpenAI(input: {
   pageCount: number;
   timestamp: string;
 }): Promise<TenderExtraction> {
-  const model = process.env.OPENAI_EXTRACTION_MODEL || process.env.OPENAI_MODEL || "gpt-4.1";
+  const model = process.env.OPENAI_MODEL || "gpt-4.1";
   const schemaExample = JSON.stringify(
     createEmptyTenderExtraction({
       fileName: input.fileName,

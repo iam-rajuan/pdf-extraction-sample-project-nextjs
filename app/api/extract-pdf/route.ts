@@ -70,7 +70,7 @@ export async function POST(request: Request) {
     if (!isMeaningfulText(extracted.text)) {
       return failure(
         "Could not extract enough machine-readable text from the PDF.",
-        ["This MVP uses text-based PDF parsing. OCR can be added as a later fallback for scanned PDFs."],
+        ["This POC uses text-based PDF parsing. OCR can be added as a later fallback for scanned PDFs."],
         422
       );
     }
